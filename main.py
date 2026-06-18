@@ -1,56 +1,39 @@
+import streamlit as st
 import pdfplumber
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 
-# Step 1: Resume PDF read pannuvom
-resume_path = "resume.pdf"
-with pdfplumber.open(resume_path) as pdf:
-    resume_text = ""
-    for page in pdf.pages:
-        resume_text += page.extract_text()
+st.title("🚀 AI Resume Matcher")
 
-# Step 2: Job description
-job_description = """
-We are looking for a Python Developer with experience in SQL, Data Analysis,
-Pandas, Power BI, Machine Learning, and API integration. Knowledge of Flask
-and Django is a plus. Strong problem solving and communication skills required.
-"""
+# Job Description Input
+job_desc = st.text_area("Job Description-a inga paste pannunga:")
 
-# Step 3: Match percentage calculate pannuvom
-documents = [resume_text, job_description]
-vectorizer = TfidfVectorizer(stop_words='english')
-vectors = vectorizer.fit_transform(documents)
-similarity = cosine_similarity(vectors[0:1], vectors[1:2])
-match_percentage = round(similarity[0][0] * 100, 2)
+# File Uploader
+uploaded_file = st.file_uploader("Unga Resume (PDF)-a upload pannunga", type="pdf")
 
-# Step 4: Missing keywords find pannuvom
-job_words = set(job_description.lower().split())
-resume_words = set(resume_text.lower().split())
-missing = job_words - resume_words
-cleaned_missing = [re.sub(r'[^a-zA-Z]', '', w) for w in missing]
-cleaned_missing = sorted(set([w for w in cleaned_missing if len(w) > 3]))
-
-# Step 5: Nice ah output kaattuvom
-print("=" * 50)
-print("        AI RESUME ANALYZER - REPORT")
-print("=" * 50)
-print(f"\nMatch Score: {match_percentage}%")
-
-bar_length = 30
-filled = int(bar_length * match_percentage / 100)
-bar = "█" * filled + "-" * (bar_length - filled)
-print(f"[{bar}]")
-
-if match_percentage >= 70:
-    print("Status: Strong Match ✅")
-elif match_percentage >= 40:
-    print("Status: Moderate Match ⚠️")
-else:
-    print("Status: Needs Improvement ❌")
-
-print("\nMissing Keywords (consider adding these):")
-for word in cleaned_missing:
-    print(f"  - {word}")
-
-print("\n" + "=" * 50)
+if uploaded_file and job_desc:
+    # PDF extract panna
+    with pdfplumber.open(uploaded_file) as pdf:
+        resume_text = "".join([page.extract_text() for page in pdf.pages])
+    
+    # Analysis Logic
+    documents = [resume_text, job_desc]
+    vectorizer = TfidfVectorizer(stop_words='english')
+    vectors = vectorizer.fit_transform(documents)
+    similarity = cosine_similarity(vectors[0:1], vectors[1:2])
+    match_score = round(similarity[0][0] * 100, 2)
+    
+    # Results Display
+    st.subheader(f"Match Score: {match_score}%")
+    st.progress(match_score / 100)
+    
+    # Keyword analysis
+    job_words = set(re.findall(r'\w+', job_desc.lower()))
+    resume_words = set(re.findall(r'\w+', resume_text.lower()))
+    missing = [w for w in job_words if w not in resume_words and len(w) > 3]
+    
+    if missing:
+        st.write("Missing Keywords:", missing)
+    else:
+        st.success("All important keywords are present!")
